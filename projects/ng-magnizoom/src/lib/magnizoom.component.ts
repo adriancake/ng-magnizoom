@@ -28,6 +28,7 @@ export class NgMagnizoomComponent implements OnInit, OnChanges {
 
 
   @Input() updateOnMouseEvents = true;
+  @Input() updateOnMouseScrollEvents = true;
 
 
   @Input() imageStyle: { [x: string]: any; };
@@ -245,7 +246,7 @@ export class NgMagnizoomComponent implements OnInit, OnChanges {
   }
 
   onMouseScroll(event: WheelEvent) {
-    if (!this.updateOnMouseEvents) { return; }
+    if (!this.updateOnMouseScrollEvents) { return; }
     let newZoomFactor = this._zoomFactor;
     newZoomFactor -= event.deltaY / 1000;
     if (newZoomFactor < this.minZoomFactor) { newZoomFactor = this.minZoomFactor; }
