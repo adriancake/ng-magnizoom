@@ -13,7 +13,10 @@ Cutout profile
 Die plate
     110 x 110 x 10
 
-Usage: python3 cad/house_die.py [output.stp]
+Usage: python3 cad/house_die.py [output.stp|output.stl ...]
+
+The export format is chosen from each output file's extension; with no
+arguments both house_die.stp and house_die.stl are written.
 """
 
 import sys
@@ -68,11 +71,31 @@ def build():
     return plate.cut(cutter)
 
 
+# Mesh resolution used for STL; fine enough that the fillets and the flat
+# walls print true to the STEP geometry.
+STL_TOLERANCE = 0.01
+STL_ANGULAR_TOLERANCE = 0.1
+
+
+def export(die, path):
+    if path.lower().endswith(".stl"):
+        cq.exporters.export(
+            die,
+            path,
+            cq.exporters.ExportTypes.STL,
+            tolerance=STL_TOLERANCE,
+            angularTolerance=STL_ANGULAR_TOLERANCE,
+        )
+    else:
+        cq.exporters.export(die, path, cq.exporters.ExportTypes.STEP)
+    print(f"wrote {path}")
+
+
 if __name__ == "__main__":
-    out = sys.argv[1] if len(sys.argv) > 1 else "house_die.stp"
+    outputs = sys.argv[1:] or ["house_die.stp", "house_die.stl"]
     die = build()
-    cq.exporters.export(die, out, cq.exporters.ExportTypes.STEP)
+    for path in outputs:
+        export(die, path)
     bb = die.val().BoundingBox()
-    print(f"wrote {out}")
     print(f"bounding box: {bb.xlen:.2f} x {bb.ylen:.2f} x {bb.zlen:.2f} mm")
     print(f"volume: {die.val().Volume():.1f} mm^3")
