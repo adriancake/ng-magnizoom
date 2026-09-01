@@ -8,12 +8,12 @@ Cutout profile
     width (wall to wall)          : 27.5   (2.75 cm)
     base to eaves ("to roof")     : 17.5   (1.75 cm)
     base to roof apex (total)     : 30.0   (3.00 cm)
-    base corner fillet radius     :  5.0
+    base corner fillet radius     :  5.0  (--fillet 0 for sharp corners)
 
 Die plate
     110 x 110 x 10
 
-Usage: python3 cad/house_die.py [output.stp|output.stl ...]
+Usage: python3 cad/house_die.py [--fillet R] [output.stp|output.stl ...]
 
 The export format is chosen from each output file's extension; with no
 arguments both house_die.stp and house_die.stl are written.
@@ -35,8 +35,11 @@ PLATE_Y = 110.0
 PLATE_T = 10.0
 
 
-def house_profile():
-    """Closed 2D sketch of the cutout, centred on its bounding box."""
+def house_profile(fillet=BASE_FILLET):
+    """Closed 2D sketch of the cutout, centred on its bounding box.
+
+    A fillet of 0 leaves the base corners sharp.
+    """
     half_w = WIDTH / 2.0
     y0 = -TOTAL_HEIGHT / 2.0            # base line
     y_eaves = y0 + EAVES_HEIGHT
@@ -50,16 +53,14 @@ def house_profile():
         (-half_w, y_eaves),
     ]
 
-    return (
-        cq.Sketch()
-        .polygon(points)
-        .vertices("<Y")                 # the two base corners
-        .fillet(BASE_FILLET)
-    )
+    sketch = cq.Sketch().polygon(points)
+    if fillet > 0:
+        sketch = sketch.vertices("<Y").fillet(fillet)   # the two base corners
+    return sketch.reset()
 
 
-def build():
-    profile = house_profile()
+def build(fillet=BASE_FILLET):
+    profile = house_profile(fillet)
 
     cutter = (
         cq.Workplane("XY")
@@ -92,8 +93,15 @@ def export(die, path):
 
 
 if __name__ == "__main__":
-    outputs = sys.argv[1:] or ["house_die.stp", "house_die.stl"]
-    die = build()
+    args = sys.argv[1:]
+    fillet = BASE_FILLET
+    if "--fillet" in args:
+        i = args.index("--fillet")
+        fillet = float(args[i + 1])
+        del args[i:i + 2]
+
+    outputs = args or ["house_die.stp", "house_die.stl"]
+    die = build(fillet)
     for path in outputs:
         export(die, path)
     bb = die.val().BoundingBox()
