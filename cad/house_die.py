@@ -13,7 +13,8 @@ Cutout profile
 Die plate
     110 x 110 x 10
 
-Usage: python3 cad/house_die.py [--fillet R] [output.stp|output.stl ...]
+Usage: python3 cad/house_die.py [--fillet R] [--eaves H] [--apex H]
+              [output.stp|output.stl ...]
 
 The export format is chosen from each output file's extension; with no
 arguments both house_die.stp and house_die.stl are written.
@@ -35,15 +36,21 @@ PLATE_Y = 110.0
 PLATE_T = 10.0
 
 
-def house_profile(fillet=BASE_FILLET):
+def house_profile(fillet=BASE_FILLET, eaves=EAVES_HEIGHT, apex=TOTAL_HEIGHT):
     """Closed 2D sketch of the cutout, centred on its bounding box.
 
-    A fillet of 0 leaves the base corners sharp.
+    A fillet of 0 leaves the base corners sharp. The apex must clear the eaves,
+    otherwise the roof would slope down into the opening instead of peaking.
     """
+    if apex <= eaves:
+        raise ValueError(
+            f"apex {apex} must be above the eaves {eaves}; the roof cannot "
+            f"peak below the walls it sits on"
+        )
     half_w = WIDTH / 2.0
-    y0 = -TOTAL_HEIGHT / 2.0            # base line
-    y_eaves = y0 + EAVES_HEIGHT
-    y_apex = y0 + TOTAL_HEIGHT
+    y0 = -apex / 2.0                    # base line
+    y_eaves = y0 + eaves
+    y_apex = y0 + apex
 
     points = [
         (-half_w, y0),
@@ -59,8 +66,8 @@ def house_profile(fillet=BASE_FILLET):
     return sketch.reset()
 
 
-def build(fillet=BASE_FILLET):
-    profile = house_profile(fillet)
+def build(fillet=BASE_FILLET, eaves=EAVES_HEIGHT, apex=TOTAL_HEIGHT):
+    profile = house_profile(fillet, eaves, apex)
 
     cutter = (
         cq.Workplane("XY")
@@ -94,14 +101,20 @@ def export(die, path):
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    fillet = BASE_FILLET
-    if "--fillet" in args:
-        i = args.index("--fillet")
-        fillet = float(args[i + 1])
+    def take(flag, default):
+        if flag not in args:
+            return default
+        i = args.index(flag)
+        value = float(args[i + 1])
         del args[i:i + 2]
+        return value
+
+    fillet = take("--fillet", BASE_FILLET)
+    eaves = take("--eaves", EAVES_HEIGHT)
+    apex = take("--apex", TOTAL_HEIGHT)
 
     outputs = args or ["house_die.stp", "house_die.stl"]
-    die = build(fillet)
+    die = build(fillet, eaves, apex)
     for path in outputs:
         export(die, path)
     bb = die.val().BoundingBox()
